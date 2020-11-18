@@ -1,0 +1,66 @@
+<html>
+  <head>
+    <title>GraphiQL</title>
+    <link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
+  </head>
+  <body style="margin: 0;">
+    <div id="graphiql" style="height: 100vh;"></div>
+
+    <script
+      crossorigin
+      src="https://unpkg.com/react/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/graphiql/graphiql.min.js"
+    ></script>
+    <script 
+      crossorigin
+      src="https://unpkg.com/subscriptions-transport-ws@0.9.18/browser/client.js"
+    ></script>
+
+    <script type="module">
+      import { parse } from "//unpkg.com/graphql@15.0.0/language/index.mjs";
+
+      const graphQLFetcher = graphQLParams =>
+        fetch('http://localhost:4444/', {
+          method: 'post',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(graphQLParams),
+        })
+          .then(response => response.json())
+          .catch(() => response.text());
+
+      const subsGraphQLFetcher = (subscriptionsClient, fallbackFetcher) => {
+        let activeSubscription = false;
+        return (graphQLParams) => {
+          if (subscriptionsClient && activeSubscription) {
+            subscriptionsClient.unsubscribeAll();
+          }
+          if (subscriptionsClient) {
+            activeSubscription = true;
+            return subscriptionsClient.request(graphQLParams);
+          } else {
+            return fallbackFetcher(graphQLParams);
+          }
+        };
+      };
+
+      // apollo: ws://localhost:4444
+      // tyk: http://tyk-gateway:8181/mycomposed/
+      let subscriptionsClient = new window.SubscriptionsTransportWs.SubscriptionClient('ws://tyk-gateway:8181/mycomposed/', {
+        reconnect: true
+      });
+      let myCustomFetcher = subsGraphQLFetcher(subscriptionsClient, graphQLFetcher);
+
+      ReactDOM.render(
+        React.createElement(GraphiQL, { fetcher: myCustomFetcher }),
+        document.getElementById('graphiql'),
+      );
+    </script>
+  </body>
+</html>
